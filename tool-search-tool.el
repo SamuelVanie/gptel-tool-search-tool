@@ -32,14 +32,57 @@
 
 (require 'gptel)
 (eval-when-compile (require 'cl-lib))
+(require 'url)
+(require 'json)
+
 
 ;;; The embeddings values for the different tools
-(defvar toolsearchtool--embeddings nil)
+(defvar toolsearchtool--embedding-values nil)
 
-(defun toolsearchtool--get-embedding (tool)
-  "Get the embedding vector of a tool.
-The tool description is built using `toolsearchtool--build-message'"
-  )
+(defgroup toolsearchtool--embedding nil
+  "Configuration for embedding requests."
+  :group 'tools)
+
+(defcustom toolsearchtool--embedding-endpoint "http://localhost:1234/v1/embeddings"
+  "The full URL for the embedding endpoint."
+  :type 'string
+  :group 'toolsearchtool--embedding)
+
+(defcustom toolsearchtool--embedding-model "text-embedding-qwen3-embedding-4b"
+  "The model name to send in the request body."
+  :type 'string
+  :group 'toolsearchtool--embedding)
+
+(defun toolsearchtool--get-embedding (text)
+  "Send TEXT to the configured embedding endpoint and return the vector.
+This function is synchronous and blocks until the request completes."
+  (let ((url-request-method "POST")
+        (url-request-extra-headers
+         '(("Content-Type" . "application/json")))
+        (url-request-data
+         (json-encode `((input . ,text)
+                        (model . ,toolsearchtool--embedding-model)))))
+    
+    (let ((buffer (url-retrieve-synchronously toolsearchtool--embedding-endpoint)))
+      (if (not buffer)
+          (error "Failed to retrieve embedding: Connection failed")
+        (with-current-buffer buffer
+          (goto-char (point-min))
+          (if (search-forward "\n\n" nil t)
+              (let* ((json-object-type 'plist) ;; Ensure we get plists
+                     (json-array-type 'list)
+                     (response (json-read))
+                     ;; Parse: response -> data -> [0] -> embedding
+                     (data (plist-get response :data))
+                     (first-item (car data))
+                     (embedding (plist-get first-item :embedding)))
+                (kill-buffer buffer)
+                (unless embedding
+                  (error "Response did not contain an embedding field: %S" response))
+                embedding)
+            (kill-buffer buffer)
+            (error "Invalid response headers")))))))
+
 
 (defun toolsearchtool--build-string (tool)
   "Build the description of the tool.
