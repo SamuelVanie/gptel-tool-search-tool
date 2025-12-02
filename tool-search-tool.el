@@ -36,22 +36,34 @@
 (require 'json)
 
 
-;;; The embeddings values for the different tools
+;;; The embedding values for the different tools
 (defvar toolsearchtool--embedding-values nil)
 
 (defgroup toolsearchtool--embedding nil
   "Configuration for embedding requests."
   :group 'tools)
 
-(defcustom toolsearchtool--embedding-endpoint "http://localhost:1234/v1/embeddings"
+(defcustom toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
   "The full URL for the embedding endpoint."
   :type 'string
   :group 'toolsearchtool--embedding)
 
-(defcustom toolsearchtool--embedding-model "text-embedding-qwen3-embedding-4b"
+(defcustom toolsearchtool-embedding-model "text-embedding-qwen3-embedding-4b"
   "The model name to send in the request body."
   :type 'string
   :group 'toolsearchtool--embedding)
+
+(defcustom toolsearchtool-get-available-tools 
+  "A function that list all the tools that exists.
+Check out my default implementation for gptel `toolsearchtool--default-get-available-tools'"
+  :default #'toolsearchtool--default-get-available-tools
+  :type 'function
+  :group 'toolsearchtool--embedding)
+
+
+(defun toolsearchtool--default-get-available-tools ()
+  "For gptel all, the known tools are stored inside the `gptel--known-tools' variable"
+  (gptel--known-tools))
 
 (defun toolsearchtool--get-embedding (text)
   "Send TEXT to the configured embedding endpoint and return the vector.
@@ -83,10 +95,26 @@ This function is synchronous and blocks until the request completes."
             (kill-buffer buffer)
             (error "Invalid response headers")))))))
 
+(defun toolsearchtool--add-embedding-value (toolname vector)
+  "Add a vector embedding value to the values registered for the
+  current tools. (`toolsearchtool--embedding-values')
+Start by testing if the tool's value is already registered. If so, a
+dialog box ask the user if he wants to recalculate the value for that tool or all of them.
+We then proceeds as answered by the user.
+Else we just go ahead by calculating and adding."
+  (if not (map-contains-key toolsearchtool--embedding-values toolname)
+    ;; vector not already registered
+    ;; then add it
+    (setq toolsearchtool--embedding-values
+	  (acons toolname vector toolsearchtool--embedding-values))
+    ;; else
+    
+    )
+  )
 
 (defun toolsearchtool--build-string (tool)
   "Build the description of the tool.
-The tool structure is gotten from the variable `gptel--known-tools'"
+The tool structure is gotten from the function `'"
   (let ((tool-name (first tool))
 	(tool-struct (rest tool)))
     (concat
@@ -103,7 +131,6 @@ The tool structure is gotten from the variable `gptel--known-tools'"
      )
     )
   )
-    
 
 (defun toolsearchtool--get-tools-suggestion ()
   "Call the embedding model from the url defined by the user then calculate
