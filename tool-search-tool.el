@@ -53,7 +53,7 @@
   :type 'string
   :group 'toolsearchtool--embedding)
 
-(defcustom toolsearchtool-get-available-tools 
+(defcustom toolsearchtool--get-available-tools 
   "A function that list all the tools that exists.
 Check out my default implementation for gptel `toolsearchtool--default-get-available-tools'"
   :default #'toolsearchtool--default-get-available-tools
@@ -62,8 +62,18 @@ Check out my default implementation for gptel `toolsearchtool--default-get-avail
 
 
 (defun toolsearchtool--default-get-available-tools ()
-  "For gptel all, the known tools are stored inside the `gptel--known-tools' variable"
-  (gptel--known-tools))
+  "For gptel all, the known tools are stored inside the `gptel--known-tools' variable.
+Returns the tools list in the format :
+(
+(\"toolname\" . #s(gptel cl-X))
+(\"secondtool\" ...)
+)
+This is the format that I use in the code base. You could reimplement all the functions
+tied to gptel, check the customize group `toolsearchtool--embedding'"
+  (cl-loop for (_category . tools) in gptel--known-tools
+	   append tools
+	   )
+  )
 
 (defun toolsearchtool--get-embedding (text)
   "Send TEXT to the configured embedding endpoint and return the vector.
@@ -95,14 +105,13 @@ This function is synchronous and blocks until the request completes."
             (kill-buffer buffer)
             (error "Invalid response headers")))))))
 
-(defun toolsearchtool--add-embedding-value (toolname vector)
-  "Add a vector embedding value to the values registered for the
-  current tools. (`toolsearchtool--embedding-values')
-Start by testing if the tool's value is already registered. If so, a
-dialog box ask the user if he wants to recalculate the value for that tool or all of them.
-We then proceeds as answered by the user.
-Else we just go ahead by calculating and adding."
-  (if not (map-contains-key toolsearchtool--embedding-values toolname)
+(defun toolsearchtool-compute-embedding (toolname)
+  "Calculate the embedding value for a tool.
+The user just have to give the name of the tool.
+This function is intended to be called by the user after he register a new tool.
+Could also be called if for some reason the user wants to recalculate embedding for one tool."
+  (interactive)
+  (if (not (map-contains-key toolsearchtool--embedding-values toolname))
     ;; vector not already registered
     ;; then add it
     (setq toolsearchtool--embedding-values
@@ -110,6 +119,12 @@ Else we just go ahead by calculating and adding."
     ;; else
     
     )
+  )
+
+(defun toolsearchtool-compute-all-embeddings ()
+  "Get all the tools available then compute their embedding values and save them."
+  (interactive)
+  
   )
 
 (defun toolsearchtool--build-string (tool)
