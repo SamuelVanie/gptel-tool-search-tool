@@ -65,6 +65,42 @@ Returns a value between -1 and 1, where 1 means identical direction."
 ;;; The calculated cosine similarities with the last query
 (defvar toolsearchtool--cosine-similarities nil)
 
+(defcustom toolsearchtool-embedding-cache-file
+  (locate-user-emacs-file ".cache/toolsearchtool-embeddings.eld")
+  "File to cache emdedding values."
+  :type 'file
+  :group 'toolsearchtool--embedding)
+
+(defun toolsearchtool--save-embeddings ()
+  "Save embedding values to cache file."
+  (when toolsearchtool--embedding-values
+    (with-temp-file toolsearchtool-embedding-cache-file
+      (insert " ;;; -*- lisp-data -*-\n")
+      (prin1 toolsearchtool--embedding-values (current-buffer))
+      (insert "\n"))
+    (message "Saved embeddings to %s" toolsearchtool-embedding-cache-file)))
+
+;;;###autoload
+(defun toolsearchtool--load-embeddings ()
+  "Load the embeddings from cache file."
+  (when (file-exists-p toolsearchtool-embedding-cache-file)
+    (condition-case err
+	(with-temp-buffer
+	  (insert-file-contents toolsearchtool-embedding-cache-file)
+	  (goto-char (point-min))
+
+	  ;; skip the header comment if present
+	  (when (looking-at ";;;")
+	    (forward-line 1))
+	  
+	  (setq toolsearchtool--embedding-values (read (current-buffer)))
+	  
+	  (message "Loaded %d embeddings from cache"
+		   (length toolsearchtool--embedding-values)) t)
+      (error
+       (message "Failed to load embeddings cache: %s" (error-message-string err))
+       nil))))
+
 (defcustom toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
   "The full URL for the embedding endpoint."
   :type 'string
@@ -143,6 +179,7 @@ embedding for one tool."
     )
   )
 
+;;;###autoload
 (defun toolsearchtool-compute-all-embedding ()
   "Get all the tools available then compute their embedding values and save them."
   (interactive)
@@ -157,6 +194,7 @@ embedding for one tool."
 			   ))
 	     )
 	  )
+    (toolsearchtool--save-embeddings)
     )
   )
 
@@ -202,10 +240,12 @@ The tool structure is the one from `gptel--known-tools'"
 the cosine similarity to get the appropriate tools and return the
 appropriate tools to be selected for the query."
 
-  ;; if the embedding values for the current tools are not yet
-  ;; calculated, then compute them.
+  ;; Try to load cached embeddings first
   (unless toolsearchtool--embedding-values
-    (toolsearchtool-compute-all-embedding))
+    (unless (toolsearchtool--load-embeddings)
+      ;; If loading failed, compute them
+      (toolsearchtool-compute-all-embedding)))
+
 
   ;; get the embedding for the user's query
   ;; compute the cosine similarities with the tools' vectors
