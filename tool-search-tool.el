@@ -148,7 +148,8 @@ Could also be called if for some reason the user wants to recalculate embedding 
   (when (or (not toolsearchtool--embedding-values)
 	    (and toolsearchtool--embedding-values
 		 (y-or-n-p "Recompute all the embedding values ?")))
-    (setq toolsearchtool--embedding-values (cl-loop for (toolname . toolstruct) in (funcall toolsearchtool--get-available-tools)
+    (setq toolsearchtool--embedding-values
+	  (cl-loop for (toolname . toolstruct) in (funcall toolsearchtool--get-available-tools)
 	     collect (cons toolname
 			  (toolsearchtool--get-embedding
 			   (toolsearchtool--build-string toolstruct)
@@ -158,11 +159,23 @@ Could also be called if for some reason the user wants to recalculate embedding 
     )
   )
 
-(defun toolsearchtool--compute-similarities (queryvector)
+(defun toolsearchtool--compute-all-similarities (queryvector)
   "Compute the cosine similarities between the query's vector and the tools'
 ones. We will then be able to choose the most relevant ones. Check the vectors' values
 in the variable `toolsearchtool--embedding-values'"
-  
+  (setq toolsearchtool--cosine-similarities
+	(cl-loop for (toolname . toolvector) in toolsearchtool--embedding-values
+		 collect (cons toolname
+			       (cosine-similarity queryvector toolvector))
+		 )
+	)
+
+  ;; sort in order
+  (setq toolsearchtool--cosine-similarities
+	(sort toolsearchtool--cosine-similarities
+	      (lambda (a b) (> (rest a) (rest b)))
+	      )
+	)
   )
 
 (defun toolsearchtool--build-string (toolstruct)
@@ -183,10 +196,21 @@ The tool structure is the one from `gptel--known-tools'"
     )
 
 
-(defun toolsearchtool--get-tools-suggestion ()
-  "Call the embedding model from the url defined by the user then calculate
-the cosine similarity to get the appropriate
-tools that will be returned to the model"
+(defun toolsearchtool--get-tools-suggestion (query)
+  "Call the embedding model from the url defined by the user then calculate the cosine similarity to get the appropriate
+tools and return the appropriate tools to be selected for the query."
+
+  ;; if the embedding values for the current tools are not yet
+  ;; calculated, then compute them.
+  (unless toolsearchtool--embedding-values
+    (toolsearchtool-compute-all-embedding))
+
+  ;; get the embedding for the user's query
+  ;; compute the cosine similarities with the tools' vectors
+  (toolsearchtool--compute-all-similarities (toolsearchtool--get-embedding query))
+
+  ;; get the first n tools
+  ;; n defined by a custom variable
   
   )
 
