@@ -36,12 +36,34 @@
 (require 'json)
 
 
+(defun dot-product (vec1 vec2)
+  "Calculate dot product of VEC1 and VEC2."
+  (apply #'+ (cl-mapcar #'* vec1 vec2)))
+
+(defun magnitude (vec)
+  "Calculate magnitude (length) of vector VEC."
+  (sqrt (apply #'+ (mapcar (lambda (x) (* x x)) vec))))
+
+(defun cosine-similarity (vec1 vec2)
+  "Calculate cosine similarity between VEC1 and VEC2.
+Returns a value between -1 and 1, where 1 means identical direction."
+  (let ((dot (dot-product vec1 vec2))
+        (mag1 (magnitude vec1))
+        (mag2 (magnitude vec2)))
+    (if (or (zerop mag1) (zerop mag2))
+        0.0
+      (/ dot (* mag1 mag2)))))
+
+
 (defgroup toolsearchtool--embedding nil
   "Configuration for embedding requests."
   :group 'tools)
 
 ;;; The embedding values for the different tools
 (defvar toolsearchtool--embedding-values nil)
+
+;;; The calculated cosine similarities with the last query
+(defvar toolsearchtool--cosine-similarities nil)
 
 (defcustom toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
   "The full URL for the embedding endpoint."
@@ -126,17 +148,21 @@ Could also be called if for some reason the user wants to recalculate embedding 
   (when (or (not toolsearchtool--embedding-values)
 	    (and toolsearchtool--embedding-values
 		 (y-or-n-p "Recompute all the embedding values ?")))
-    (let (
-	  (embeddings '())
+    (setq toolsearchtool--embedding-values (cl-loop for (toolname . toolstruct) in (funcall toolsearchtool--get-available-tools)
+	     collect (cons toolname
+			  (toolsearchtool--get-embedding
+			   (toolsearchtool--build-string toolstruct)
+			   ))
+	     )
 	  )
-      (cl-loop for (toolname . toolstruct) in (funcall toolsearchtool--get-available-tools)
-	       append (cons toolname
-			    (toolsearchtool--get-embedding
-			     (toolsearchtool--build-string toolstruct)
-			     ))
-	       )
-      )
     )
+  )
+
+(defun toolsearchtool--compute-similarities (queryvector)
+  "Compute the cosine similarities between the query's vector and the tools'
+ones. We will then be able to choose the most relevant ones. Check the vectors' values
+in the variable `toolsearchtool--embedding-values'"
+  
   )
 
 (defun toolsearchtool--build-string (toolstruct)
@@ -154,7 +180,8 @@ The tool structure is the one from `gptel--known-tools'"
 			  (plist-get param :description)))
 		(gptel-tool-args toolstruct) ",")
      )
-  )
+    )
+
 
 (defun toolsearchtool--get-tools-suggestion ()
   "Call the embedding model from the url defined by the user then calculate
