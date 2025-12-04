@@ -128,15 +128,16 @@ This function is synchronous and blocks until the request completes."
 
 (defun toolsearchtool-compute-embedding (toolname)
   "Calculate the embedding value for a tool.
-The user just have to give the name of the tool.
-This function is intended to be called by the user after he register a new tool.
-Could also be called if for some reason the user wants to recalculate embedding for one tool."
+The user just have to give the name of the tool.  This function is
+intended to be called by the user after he register a new tool.  Could
+also be called if for some reason the user wants to recalculate
+embedding for one tool."
   (interactive)
   (if (not (map-contains-key toolsearchtool--embedding-values toolname))
-    ;; vector not already registered
-    ;; then add it
-    (setq toolsearchtool--embedding-values
-	  (acons toolname vector toolsearchtool--embedding-values))
+      ;; vector not already registered
+      ;; then add it
+      (setq toolsearchtool--embedding-values
+	    (acons toolname vector toolsearchtool--embedding-values))
     ;; else
     
     )
@@ -161,8 +162,8 @@ Could also be called if for some reason the user wants to recalculate embedding 
 
 (defun toolsearchtool--compute-all-similarities (queryvector)
   "Compute the cosine similarities between the query's vector and the tools'
-ones. We will then be able to choose the most relevant ones. Check the vectors' values
-in the variable `toolsearchtool--embedding-values'"
+ones. We will then be able to choose the most relevant ones. Check the
+vectors' values in the variable `toolsearchtool--embedding-values'"
   (setq toolsearchtool--cosine-similarities
 	(cl-loop for (toolname . toolvector) in toolsearchtool--embedding-values
 		 collect (cons toolname
@@ -197,8 +198,9 @@ The tool structure is the one from `gptel--known-tools'"
 
 
 (defun toolsearchtool--get-tools-suggestion (query)
-  "Call the embedding model from the url defined by the user then calculate the cosine similarity to get the appropriate
-tools and return the appropriate tools to be selected for the query."
+  "Call the embedding model from the url defined by the user then calculate
+the cosine similarity to get the appropriate tools and return the
+appropriate tools to be selected for the query."
 
   ;; if the embedding values for the current tools are not yet
   ;; calculated, then compute them.
