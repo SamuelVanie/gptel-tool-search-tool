@@ -36,12 +36,12 @@
 (require 'json)
 
 
-;;; The embedding values for the different tools
-(defvar toolsearchtool--embedding-values nil)
-
 (defgroup toolsearchtool--embedding nil
   "Configuration for embedding requests."
   :group 'tools)
+
+;;; The embedding values for the different tools
+(defvar toolsearchtool--embedding-values nil)
 
 (defcustom toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
   "The full URL for the embedding endpoint."
@@ -53,10 +53,9 @@
   :type 'string
   :group 'toolsearchtool--embedding)
 
-(defcustom toolsearchtool--get-available-tools 
+(defcustom toolsearchtool--get-available-tools #'toolsearchtool--default-get-available-tools
   "A function that list all the tools that exists.
 Check out my default implementation for gptel `toolsearchtool--default-get-available-tools'"
-  :default #'toolsearchtool--default-get-available-tools
   :type 'function
   :group 'toolsearchtool--embedding)
 
@@ -83,9 +82,9 @@ This function is synchronous and blocks until the request completes."
          '(("Content-Type" . "application/json")))
         (url-request-data
          (json-encode `((input . ,text)
-                        (model . ,toolsearchtool--embedding-model)))))
+                        (model . ,toolsearchtool-embedding-model)))))
     
-    (let ((buffer (url-retrieve-synchronously toolsearchtool--embedding-endpoint)))
+    (let ((buffer (url-retrieve-synchronously toolsearchtool-embedding-endpoint)))
       (if (not buffer)
           (error "Failed to retrieve embedding: Connection failed")
         (with-current-buffer buffer
@@ -121,30 +120,40 @@ Could also be called if for some reason the user wants to recalculate embedding 
     )
   )
 
-(defun toolsearchtool-compute-all-embeddings ()
+(defun toolsearchtool-compute-all-embedding ()
   "Get all the tools available then compute their embedding values and save them."
   (interactive)
-  
+  (when (or (not toolsearchtool--embedding-values)
+	    (and toolsearchtool--embedding-values
+		 (y-or-n-p "Recompute all the embedding values ?")))
+    (let (
+	  (embeddings '())
+	  )
+      (cl-loop for (toolname . toolstruct) in (funcall toolsearchtool--get-available-tools)
+	       append (cons toolname
+			    (toolsearchtool--get-embedding
+			     (toolsearchtool--build-string toolstruct)
+			     ))
+	       )
+      )
+    )
   )
 
-(defun toolsearchtool--build-string (tool)
+(defun toolsearchtool--build-string (toolstruct)
   "Build the description of the tool.
-The tool structure is gotten from the function `'"
-  (let ((tool-name (first tool))
-	(tool-struct (rest tool)))
+The tool structure is the one from `gptel--known-tools'"
     (concat
-     (format "Tool: %s\n" tool-name)
-     (format "Category: %s\n" (gptel-tool-category tool-struct))
-     (format "Description: %s\n" (gptel-tool-description tool-struct))
+     (format "Tool: %s\n" (gptel-tool-name toolstruct))
+     (format "Category: %s\n" (gptel-tool-category toolstruct))
+     (format "Description: %s\n" (gptel-tool-description toolstruct))
      (format "Parameters: ")
      (mapconcat (lambda (param)
 		  (format "%s (%s): %s"
 			  (plist-get param :name)
 			  (plist-get param :type)
 			  (plist-get param :description)))
-		(gptel-tool-args tool-struct) ",")
+		(gptel-tool-args toolstruct) ",")
      )
-    )
   )
 
 (defun toolsearchtool--get-tools-suggestion ()
