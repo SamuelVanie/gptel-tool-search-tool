@@ -55,7 +55,7 @@ Returns a value between -1 and 1, where 1 means identical direction."
       (/ dot (* mag1 mag2)))))
 
 
-(defgroup toolsearchtool--embedding nil
+(defgroup toolsearchtool nil
   "Configuration for embedding requests."
   :group 'tools)
 
@@ -69,7 +69,11 @@ Returns a value between -1 and 1, where 1 means identical direction."
   (locate-user-emacs-file ".cache/toolsearchtool-embeddings.eld")
   "File to cache emdedding values."
   :type 'file
-  :group 'toolsearchtool--embedding)
+  :group 'toolsearchtool)
+
+(defcustom toolsearchtool-number-of-results 4
+  :type 'number
+  :group 'toolsearchtool)
 
 (defun toolsearchtool--save-embeddings ()
   "Save embedding values to cache file."
@@ -104,18 +108,18 @@ Returns a value between -1 and 1, where 1 means identical direction."
 (defcustom toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
   "The full URL for the embedding endpoint."
   :type 'string
-  :group 'toolsearchtool--embedding)
+  :group 'toolsearchtool)
 
 (defcustom toolsearchtool-embedding-model "text-embedding-qwen3-embedding-4b"
   "The model name to send in the request body."
   :type 'string
-  :group 'toolsearchtool--embedding)
+  :group 'toolsearchtool)
 
 (defcustom toolsearchtool--get-available-tools #'toolsearchtool--default-get-available-tools
   "A function that list all the tools that exists.
 Check out my default implementation for gptel `toolsearchtool--default-get-available-tools'"
   :type 'function
-  :group 'toolsearchtool--embedding)
+  :group 'toolsearchtool)
 
 
 (defun toolsearchtool--default-get-available-tools ()
