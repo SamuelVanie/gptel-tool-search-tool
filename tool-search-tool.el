@@ -173,16 +173,25 @@ The user just have to give the name of the tool.  This function is
 intended to be called by the user after he register a new tool.  Could
 also be called if for some reason the user wants to recalculate
 embedding for one tool."
-  (interactive)
-  (if (not (map-contains-key toolsearchtool--embedding-values toolname))
-      ;; vector not already registered
-      ;; then add it
-      (setq toolsearchtool--embedding-values
-	    (acons toolname vector toolsearchtool--embedding-values))
-    ;; else
-    
-    )
-  )
+  (interactive
+   (let ((tools (mapcan (lambda (cat) (mapcar #'car (cdr cat)))
+                        gptel--known-tools)))
+     (list (intern (completing-read "Tool name: " tools nil t)))))
+  (let* ((tool-symbol (if (stringp toolname) (intern toolname) toolname))
+         (tool-name-str (symbol-name tool-symbol))
+         (tool-struct
+          (catch 'found
+            (dolist (cat gptel--known-tools)
+              (let ((match (assoc tool-name-str (cdr cat))))
+                (when match (throw 'found (cdr match))))))))
+    (unless tool-struct
+      (error "Tool structure not found for %s in gptel--known-tools" tool-symbol))
+    (when (and (map-contains-key toolsearchtool--embedding-values tool-symbol)
+               (not (y-or-n-p (format "Embedding for %s already exists. Recompute? " tool-symbol))))
+      (user-error "Aborted recomputation of embedding"))
+    (let ((vector (toolsearchtool--get-embedding (toolsearchtool--build-string tool-struct))))
+      (setf (alist-get tool-symbol toolsearchtool--embedding-values) vector)
+      (message "Embedding updated for %s" tool-symbol))))
 
 ;;;###autoload
 (defun toolsearchtool-compute-all-embedding ()
