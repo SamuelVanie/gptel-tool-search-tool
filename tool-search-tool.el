@@ -122,6 +122,12 @@ Check out my default implementation for gptel `toolsearchtool--default-get-avail
   :type 'function
   :group 'toolsearchtool)
 
+(defcustom toolsearchtool--select-tools #'toolsearchtool--default-select-tool
+  "A function that will be the logic for the tool used by the llm to choose
+the appropriate tool"
+  :type 'function
+  :group 'toolsearchtool)
+
 
 (defun toolsearchtool--default-get-available-tools ()
   "For gptel all, the known tools are stored inside the `gptel--known-tools' variable.
@@ -247,6 +253,29 @@ The tool structure is the one from `gptel--known-tools'"
 		(gptel-tool-args toolstruct) ",")
      )
     )
+
+
+(defun toolsearchtool--default-select-tool (list)
+  "The list of tools to select, will be added to the current list"
+  (let ((tools (funcall toolsearchtool--get-available-tools))
+	)
+    (cl-loop for tool in list
+	     do (let ((toolstruct (assoc tool tools))
+		      )
+		  (if toolstruct
+		      (progn
+			(setq gptel-tools (cons (rest toolstruct) gptel-tools))
+			)
+		    )
+		  )
+	     )
+    )
+  )
+
+(defun toolsearchtool--remove-tool (names)
+  "The list of tools to remove from the list"
+  
+  )
 
 
 (defun toolsearchtool--get-tools-suggestion (query)
