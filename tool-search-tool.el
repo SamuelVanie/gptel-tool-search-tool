@@ -292,6 +292,9 @@ This is the default gptel implementation. See the variable
 				 (lambda (x) (not (string= (gptel-tool-name x) name)))
 				 gptel-tools))
 	   )
+  (gptel-abort (current-buffer))
+  (end-of-buffer)
+  (gptel-send)
   )
 
 
