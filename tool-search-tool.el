@@ -278,6 +278,9 @@ variable `toolsearchtool--select-tools'"
 		  )
 	     )
     )
+  (gptel-abort (current-buffer))
+  (end-of-buffer)
+  (gptel-send)
   )
 
 (defun toolsearchtool--default-remove-tools (names)
