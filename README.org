@@ -1,0 +1,273 @@
+#+title: Tool Search Tool
+#+author: samuelvanie
+
+A GPTel extension that dynamically searches and manages tools using semantic similarity. This package integrates with gptel to allow language models to discover, select, and remove tools based on natural language queries.
+
+** Features
+
+- *Semantic Tool Search*: Search for available tools using natural language queries powered by embedding similarity
+- *Dynamic Tool Management*: Add and remove tools from your workspace on-the-fly
+- *Embedding Caching*: Cache tool embeddings locally to minimize API calls
+- *Customizable Integration*: Extend with your own tool backends beyond gptel
+- *Asynchronous Operations*: Non-blocking embedding computations
+
+** Installation
+
+*** Using straight.el and use-package
+
+Add the following to your Emacs configuration:
+
+#+begin_src elisp
+(use-package tool-search-tool
+  :straight (tool-search-tool :type git :host github :repo "SamuelVanie/gptel-tool-search-tool" :files ("*.el")))
+#+end_src
+
+*** Manual Installation
+
+Clone the repository and add to your load path:
+
+#+begin_src elisp
+(add-to-list 'load-path "/path/to/gptel-tool-search-tool")
+(require 'tool-search-tool)
+#+end_src
+
+** Requirements
+
+- [[https://github.com/karthink/gptel][gptel]] - An Emacs package for working with GPT and other language models
+- Emacs 27.1 or later
+
+** Configuration
+
+*** Embedding Endpoint
+
+Configure the endpoint for your embedding model:
+
+#+begin_src elisp
+(setq toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings")
+#+end_src
+
+*** Embedding Model
+
+Specify the embedding model to use:
+
+#+begin_src elisp
+(setq toolsearchtool-embedding-model "text-embedding-qwen3-embedding-4b")
+#+end_src
+
+*** Number of Results
+
+Control how many tools are returned for a query:
+
+#+begin_src elisp
+(setq toolsearchtool-number-of-results 4)
+#+end_src
+
+*** Cache File Location
+
+By default, embeddings are cached at =~/.emacs.d/.cache/toolsearchtool-embeddings.eld=. Customize this path:
+
+#+begin_src elisp
+(setq toolsearchtool-embedding-cache-file
+      (locate-user-emacs-file ".cache/my-embeddings.eld"))
+#+end_src
+
+** Usage
+
+*** Computing Tool Embeddings
+
+Before using the tool search functionality, compute embeddings for all available tools:
+
+#+begin_src elisp
+M-x toolsearchtool-compute-all-embedding
+#+end_src
+
+This command:
+1. Retrieves all available tools from gptel
+2. Sends each tool's description to your embedding endpoint
+3. Caches the results locally
+
+To compute embedding for a single tool:
+
+#+begin_src elisp
+M-x toolsearchtool-compute-embedding
+#+end_src
+
+*** Using with GPTel
+
+Once configured, the tool search becomes available as a tool in GPTel conversations. The model can use three tool management functions:
+
+- =tool_search(query)= - Search for tools matching a description
+- =select_tools(list)= - Add tools to the workspace
+- =remove_tools(list)= - Remove tools from the workspace
+
+Example conversation:
+
+#+begin_example
+User: I need to process some JSON data and make HTTP requests.
+
+Model: I'll search for the right tools for that task.
+[Calls tool_search("JSON processing and HTTP requests")]
+Found relevant tools:
+- json-parser: Parse and manipulate JSON data
+- http-client: Make HTTP requests
+[Calls select_tools(["json-parser", "http-client"])]
+
+Model: Great! I now have the json-parser and http-client tools available.
+#+end_example
+
+** Customization
+
+### Custom Tool Backends
+
+If you're not using gptel's tools, customize the backend functions:
+
+#+begin_src elisp
+(setq toolsearchtool--get-available-tools #'my-custom-get-tools)
+(setq toolsearchtool--select-tools #'my-custom-select-tools)
+(setq toolsearchtool--remove-tools #'my-custom-remove-tools)
+#+end_src
+
+Example implementation:
+
+#+begin_src elisp
+(defun my-custom-get-tools ()
+  "Return tools in format: ((\"tool-name\" . tool-struct) ...)"
+  (list
+    (cons "my-tool" (make-my-tool-struct ...))
+    (cons "other-tool" (make-other-tool-struct ...))))
+
+(defun my-custom-select-tools (tool-names)
+  "Add TOOL-NAMES to active tools."
+  ;; Implementation here
+  )
+
+(defun my-custom-remove-tools (tool-names)
+  "Remove TOOL-NAMES from active tools."
+  ;; Implementation here
+  )
+#+end_src
+
+** How It Works
+
+1. *Tool Description Building*: Each tool is converted to a text description containing its name, category, description, and parameters
+2. *Embedding Generation*: Descriptions are sent to an embedding API (typically running locally via Ollama or similar)
+3. *Similarity Computation*: Query embeddings are compared to tool embeddings using cosine similarity
+4. *Tool Selection*: The top N tools by similarity score are returned to the language model
+
+The embeddings are cached locally to minimize API calls for repeated queries.
+
+** API Reference
+
+*** Functions
+
+**** =toolsearchtool-compute-all-embedding=
+
+Compute embeddings for all available tools and cache them locally.
+
+#+begin_src elisp
+(toolsearchtool-compute-all-embedding)
+#+end_src
+
+**** =toolsearchtool-compute-embedding tool-name=
+
+Compute embedding for a specific tool.
+
+#+begin_src elisp
+(toolsearchtool-compute-embedding 'my-tool-name)
+#+end_src
+
+### Variables
+
+- =toolsearchtool-embedding-endpoint= (string): URL of the embedding service
+- =toolsearchtool-embedding-model= (string): Name of the embedding model
+- =toolsearchtool-number-of-results= (number): Maximum tools to return per query
+- =toolsearchtool-embedding-cache-file= (file): Path to the embeddings cache
+
+** Examples
+
+### Setting Up with Ollama
+
+If you're using [[https://ollama.ai][Ollama]] locally:
+
+#+begin_src elisp
+(use-package tool-search-tool
+  :straight (tool-search-tool :type git :host github :repo "vanieb/gptel-tool-search-tool" :files ("*.el"))
+  :config
+  (setq toolsearchtool-embedding-endpoint "http://localhost:11434/api/embed"
+        toolsearchtool-embedding-model "nomic-embed-text"
+        toolsearchtool-number-of-results 5))
+#+end_src
+
+Make sure Ollama is running with the embedding model:
+
+#+begin_src bash
+ollama run nomic-embed-text
+#+end_src
+
+### Full Configuration Example
+
+#+begin_src elisp
+(use-package gptel
+  ;; gptel configuration
+  )
+
+(use-package tool-search-tool
+  :straight (tool-search-tool :type git :host github :repo "vanieb/gptel-tool-search-tool" :files ("*.el"))
+  :after gptel
+  :config
+  (setq toolsearchtool-embedding-endpoint "http://localhost:1234/v1/embeddings"
+        toolsearchtool-embedding-model "text-embedding-qwen3-embedding-4b"
+        toolsearchtool-number-of-results 4)
+  
+  ;; Compute embeddings on first load
+  (unless (file-exists-p toolsearchtool-embedding-cache-file)
+    (when (y-or-n-p "Compute tool embeddings now? (Required for tool search)")
+      (toolsearchtool-compute-all-embedding))))
+#+end_src
+
+** Troubleshooting
+
+*** "The embeddings for the tools are not yet computed"
+
+Run =M-x toolsearchtool-compute-all-embedding= to generate and cache embeddings.
+
+*** Embedding endpoint connection failed
+
+Verify that:
+1. Your embedding service is running
+2. The endpoint URL is correct (verify with =curl=)
+3. The embedding model name matches what your service expects
+
+Example test:
+
+#+begin_src bash
+curl -X POST http://localhost:1234/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{"input":"test query","model":"text-embedding-qwen3-embedding-4b"}'
+#+end_src
+
+*** Poor search results
+
+The quality of results depends on:
+- Your embedding model's capabilities
+- The specificity of tool descriptions
+- The number of available tools
+
+Consider improving tool descriptions or trying a different embedding model.
+
+** License
+
+GNU General Public License v3.0 or later. See LICENSE file for details.
+
+** Contributing
+
+Contributions are welcome! Please feel free to submit issues and pull requests.
+
+** Author
+
+Samuel Vanie
+
+** See Also
+
+- [[https://github.com/karthink/gptel][GPTel Documentation]]
+- [[https://ollama.ai][Ollama - Run LLMs locally]]
